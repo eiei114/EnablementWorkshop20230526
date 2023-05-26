@@ -69,8 +69,6 @@ func convert(ctx context.Context, file string) (rerr error) {
 	region := trace.StartRegion(ctx, "convert")
 	defer region.End()
 
-	//以下は元のコードと同じ...
-
 	//ファイルを開く
 	src, err := os.Open(file)
 	if err != nil {
