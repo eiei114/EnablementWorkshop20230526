@@ -11,14 +11,19 @@ import (
 )
 
 func main() {
-	//これは何？
+	// ワイルドカードを展開してファイルリストを取得
+	files, err := filepath.Glob(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	ctx := context.Background()
-	if err := run(ctx, os.Args[1:]); err != nil {
+	if err := run(ctx, files); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
-
 func run(ctx context.Context, files []string) error {
 	//ファイルを取得
 	for _, file := range files {
