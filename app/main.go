@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	jpeg "image/jpeg"
 	png "image/png"
 	"os"
 	"path/filepath"
 	"runtime/trace"
-	"sync"
 )
 
 func main() {
@@ -46,26 +46,27 @@ func run(ctx context.Context, files []string) error {
 }
 
 func convertAll(ctx context.Context, files []string) error {
-	var wg sync.WaitGroup
+	var eg errgroup.Group
 	ctx, task := trace.NewTask(ctx, "convert All")
 	defer task.End()
 
 	for _, file := range files {
-		wg.Add(1)
-		go func(file string) {
-			defer wg.Done()
-			//convertを呼ぶ
-			if err := convert(ctx, file); err != nil {
-				fmt.Println(err) //エラーを表示す
-			}
-		}(file)
+		file := file
+		eg.Go(func() error {
+			return convert(ctx, file)
+		})
 	}
-	wg.Wait()
+
+	//エラーがあれば返す
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+
 	//成功したらnilを返す
 	return nil
 }
 
-func convert(ctx context.Context, file string) (rerr error) {
+func convert(ctx context.Context, file string) error {
 	region := trace.StartRegion(ctx, "convert")
 	defer region.End()
 
@@ -83,6 +84,12 @@ func convert(ctx context.Context, file string) (rerr error) {
 		return err
 	}
 
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	//ファイル名を変更
 	ext := filepath.Ext(file)
 	//拡張しを変更".ping"->".jpg"に
@@ -95,11 +102,18 @@ func convert(ctx context.Context, file string) (rerr error) {
 	}
 	defer func() {
 		dst.Close()
-		if rerr != nil {
+		if err != nil {
 			//失敗したらファイルを削除
 			os.Remove(jpgfile)
 		}
 	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	//jpgファイルにエンコード
 	if err := jpeg.Encode(dst, pngimg, nil); err != nil {
 		return err
