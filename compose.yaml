@@ -1,0 +1,12 @@
+version: "3"
+services:
+    template_project:
+        container_name: template_project
+        build: .
+        tty: true
+        environment:
+            - TZ=Asia/Tokyo
+        env_file:
+            - .env
+        volumes:
+            - ./app:/go/src/app
